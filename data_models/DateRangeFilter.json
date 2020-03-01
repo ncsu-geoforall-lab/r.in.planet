@@ -1,0 +1,8 @@
+{  
+    "type":"DateRangeFilter",
+    "field_name":"acquired",
+    "config":{  
+       "gt":"",
+       "lte":""
+    }
+ }

@@ -1,0 +1,8 @@
+{  
+    "type":"GeometryFilter",
+    "field_name":"geometry",
+    "config":{  
+       "type":"Polygon",
+       "coordinates":[]
+    }
+ }

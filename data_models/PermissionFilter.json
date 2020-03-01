@@ -1,0 +1,6 @@
+{  
+    "type":"PermissionFilter",
+    "config":[  
+       "assets:download"
+    ]
+ }

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
 ############################################################################
@@ -27,17 +27,32 @@
 #% keyword: Imagery
 #%end
 
+#%option
+#% key: api_key
+#% required: yes
+#% type: string
+#% label: API Key
+#% description: Planet API key
+#%end
+
 #%flag
 #% key: i
 #% description: Return USGS data information without downloading files
 #%end
 
 #%option
-#% key: product
+#% key: item_type
 #% required: yes
-#% options: ned,nlcd,naip,lidar
-#% label: USGS data product
-#% description: Available USGS data products to query
+#% options: PSScene3Band,PSScene4Band,PSOrthoTile,REOrthoTile,REScene,SkySatScene,SkySatCollect,SkySatVideo,Landsat8L1G,Sentinel2L1C 	
+#% label: Planet Item Types
+#% description: Class of spacecraft and/or processing level of the item
+#% descriptions: PSScene3Band;NED 1 arc-second;PSScene4Band;NED 1/3 arc-second;ned19sec;NED 1/9 arc-second
+#%end
+
+#%option G_OPT_V_INPUT
+#% key: input_name
+#% required: yes
+#% label: Query Extent
 #%end
 
 #%option G_OPT_R_OUTPUT
@@ -48,116 +63,74 @@
 #%option G_OPT_M_DIR
 #% key: output_directory
 #% required: yes
-#% description: Directory for USGS data download and processing
+#% description: Directory for Planet data download and processing
 #%end
 
 #%option
-#% key: ned_dataset
+#% key: start_date_filter
+#% required: yes
+#% type: date
+#% label: Filter Start Date
+#% description: Start date for query
+#%end
+
+#%option
+#% key: end_date_filter
+#% required: yes
+#% type: date
+#% label: Filter End Date
+#% description: End date for query
+#%end
+
+#%option
+#% key: cloud_cover
 #% required: no
-#% options: ned1sec, ned13sec, ned19sec
-#% answer: ned1sec
-#% label: NED dataset
-#% description: Available NED datasets to query
-#% descriptions: ned1sec;NED 1 arc-second;ned13sec;NED 1/3 arc-second;ned19sec;NED 1/9 arc-second
-#% guisection: NED
-#%end
-
-#%option
-#% key: nlcd_dataset
-#% required: no
-#% options: nlcd2001, nlcd2006, nlcd2011
-#% answer: nlcd2011
-#% label: NLCD dataset
-#% description: Available NLCD datasets to query
-#% descriptions: nlcd2001;National Land Cover Dataset - 2001;nlcd2006;National Land Cover Dataset - 2006;nlcd2011;National Land Cover Dataset - 2011
-#% guisection: NLCD
-#%end
-
-#%option
-#% key: nlcd_subset
-#% required: no
-#% options: landcover, impervious, canopy
-#% answer: landcover
-#% label: NLCD subset
-#% description: Available NLCD subsets to query
-#% descriptions: impervious;Percent Developed Imperviousness;canopy;Percent Tree Canopy;landcover;Land Cover
-#% guisection: NLCD
-#%end
-
-#%option
-#% key: input_srs
-#% type: string
-#% required: no
-#% multiple: no
-#% label: Input lidar dataset projection (WKT or EPSG, e.g. EPSG:4326)
-#% description: Override input lidar dataset coordinate system using EPSG code or WKT definition
-#% guisection: Lidar
-#%end
-
-#%option
-#% key: resolution
 #% type: double
-#% required: no
-#% multiple: no
-#% description: Resolution of lidar-based DSM
-#% guisection: Lidar
+#% multiple: yes
+#% label: Cloud Coverage
+#% description: Average percentage of cloud coverage.
 #%end
 
 #%option
-#% key: title_filter
-#% type: string
+#% key: gsd
 #% required: no
-#% multiple: no
-#% label: Filter available lidar tiles by their title (e.g. use "Phase4")
-#% description: To avoid combining lidar from multiple years, use first -i flag and filter by tile title.
-#% guisection: Lidar
+#% type: double
+#% multiple: yes
+#% label: Ground Sample Distance
+#% description: the distance between pixel centers as measured on the ground in meters.
 #%end
 
 #%option
-#% key: resampling_method
-#% type: string
+#% key: sun_azimuth
 #% required: no
-#% multiple: no
-#% options: default,nearest,bilinear,bicubic,lanczos,bilinear_f,bicubic_f,lanczos_f
-#% description: Resampling method to use
-#% descriptions: default;default method based on product;nearest;nearest neighbor;bilinear;bilinear interpolation;bicubic;bicubic interpolation;lanczos;lanczos filter;bilinear_f;bilinear interpolation with fallback;bicubic_f;bicubic interpolation with fallback;lanczos_f;lanczos filter with fallback
-#% answer: default
+#% type: double
+#% multiple: yes
+#% label: Sun Azimuth
+#% description: The angle of the sun, as seen by the observer, measured clockwise from the north (0 - 360).
 #%end
 
 #%option
-#% key: memory
-#% type: integer
+#% key: sun_elevation
 #% required: no
-#% multiple: no
-#% label: Maximum memory to be used (in MB)
-#% description: Cache size for raster rows during import and reprojection
-#% answer: 300
-#% guisection: Speed
+#% type: double
+#% multiple: yes
+#% label: Sun Elevation
+#% description: The angle of the sun above the horizon (0 - 90).
 #%end
 
 #%option
-#% key: nprocs
-#% type: integer
+#% key: view_angle
 #% required: no
-#% multiple: no
-#% description: Number of processes which will be used for parallel import and reprojection
-#% answer: 1
-#% guisection: Speed
-#%end
-
-#%flag
-#% key: k
-#% description: Keep extracted files after GRASS import and patch
-#% guisection: Speed
-#%end
-
-#%rules
-#% required: output_name, -i
+#% type: double
+#% multiple: yes
+#% label: View Angle
+#% description: The satellite's across-track, off-nadir viewing angle. Positive numbers denote east, negative numbers denote west (-25 - +25).
 #%end
 
 import sys
 import os
 import zipfile
+from planet import api
 import grass.script as gscript
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import URLError, HTTPError
