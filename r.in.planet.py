@@ -35,18 +35,13 @@
 #% description: Planet API key
 #%end
 
-#%flag
-#% key: i
-#% description: Return USGS data information without downloading files
-#%end
-
 #%option
 #% key: item_type
 #% required: yes
 #% options: PSScene3Band,PSScene4Band,PSOrthoTile,REOrthoTile,REScene,SkySatScene,SkySatCollect,SkySatVideo,Landsat8L1G,Sentinel2L1C 	
 #% label: Planet Item Types
 #% description: Class of spacecraft and/or processing level of the item
-#% descriptions: PSScene3Band;NED 1 arc-second;PSScene4Band;NED 1/3 arc-second;ned19sec;NED 1/9 arc-second
+#% descriptions: PSScene3Band;PlanetScope 3 band scenes (red, green, blue) captured by the Dove satellite constellation;PSScene4Band;PlanetScope 4 band scenes (red, green, blue, near-infrared) captured by the Dove satellite constellation;PSOrthoTile;PlanetScope ortho tiles captured by the Dove satellite constellation
 #%end
 
 #%option G_OPT_V_INPUT
@@ -88,7 +83,7 @@
 #% type: double
 #% multiple: yes
 #% label: Cloud Coverage
-#% description: Average percentage of cloud coverage.
+#% description: Average percentage of cloud coverage (0.0 - 1.0).
 #%end
 
 #%option
@@ -181,85 +176,63 @@ def map_exists(element, name, mapset):
 
 
 def main():
-    # Hard-coded parameters needed for USGS datasets
-    usgs_product_dict = {
-        "ned": {
-                'product': 'National Elevation Dataset (NED)',
-                'dataset': {
-                        'ned1sec': (1. / 3600, 30, 100),
-                        'ned13sec': (1. / 3600 / 3, 10, 30),
-                        'ned19sec': (1. / 3600 / 9, 3, 10)
-                        },
-                'subset': {},
-                'extent': [
-                        '1 x 1 degree',
-                        '15 x 15 minute'
-                         ],
-                'format': 'IMG',
-                'extension': 'img',
-                'zip': True,
-                'srs': 'wgs84',
-                'srs_proj4': "+proj=longlat +ellps=GRS80 +datum=NAD83 +nodefs",
-                'interpolation': 'bilinear',
-                'url_split': '/'
-                },
-        "nlcd": {
-                'product': 'National Land Cover Database (NLCD)',
-                'dataset': {
-                        'National Land Cover Database (NLCD) - 2001': (1. / 3600, 30, 100),
-                        'National Land Cover Database (NLCD) - 2006': (1. / 3600, 30, 100),
-                        'National Land Cover Database (NLCD) - 2011': (1. / 3600, 30, 100)
-                        },
-                'subset': {
-                        'Percent Developed Imperviousness',
-                        'Percent Tree Canopy',
-                        'Land Cover'
-                        },
-                'extent': ['3 x 3 degree'],
-                'format': 'GeoTIFF',
-                'extension': 'tif',
-                'zip': True,
-                'srs': 'wgs84',
-                'srs_proj4': "+proj=longlat +ellps=GRS80 +datum=NAD83 +nodefs",
-                'interpolation': 'nearest',
-                'url_split': '/'
-                },
-        "naip": {
-                'product': 'USDA National Agriculture Imagery Program (NAIP)',
-                'dataset': {
-                        'Imagery - 1 meter (NAIP)': (1. / 3600 / 27, 1, 3)},
-                'subset': {},
-                'extent': [
-                        '3.75 x 3.75 minute',
-                         ],
-                'format': 'JPEG2000',
-                'extension': 'jp2',
-                'zip': False,
-                'srs': 'wgs84',
-                'srs_proj4': "+proj=longlat +ellps=GRS80 +datum=NAD83 +nodefs",
-                'interpolation': 'nearest',
-                'url_split': '/'
-                },
-        "lidar": {
-                'product': 'Lidar Point Cloud (LPC)',
-                'dataset': {
-                        'Lidar Point Cloud (LPC)': (1. / 3600 / 9, 3, 10)},
-                'subset': {},
-                'extent': [''],
-                'format': 'LAS,LAZ',
-                'extension': 'las,laz',
-                'zip': True,
-                'srs': '',
-                'srs_proj4': "+proj=longlat +ellps=GRS80 +datum=NAD83 +nodefs",
-                'interpolation': 'nearest',
-                'url_split': '/'
-                }
-            }
-
-    # Set GRASS GUI options and flags to python variables
-    gui_product = options['product']
-
+    
     # Variable assigned from USGS product dictionary
+    planet_api_key = options['api_key']
+    item_type = options['item_type']
+    input_name = options['input_name']
+    output_name = options['output_name']
+    filter_start_date = options['start_date_filter']
+    filter_end_date = options['end_date_filter']
+    cloud_cover = options['cloud_cover']
+    gsd = options['gsd']
+    sun_azimuth = options['sun_azimuth']
+    sun_elevation = options['sun_elevation']
+    view_angle = options['view_angle']
+
+    # Set date range filters
+    start_date_range_filter = api.filters.date_range('acquired', gte=filter_start_date)
+    end_date_range_filter = api.filters.date_range('acquired', lte=filter_end_date)
+
+    # Set cloud filter (Optional)
+    cloud_cover_low, cloud_cover_high = cloud_cover
+    cloud_cover_low_filter = api.filters.range_filter('cloud_cover', gt=cloud_cover_low),
+    cloud_cover_high_filter = api.filters.range_filter('cloud_cover', lt=cloud_cover_high)
+
+    # Set gsd filter NumberInFilter (Optional)
+
+    # Set sun azimuth filter (Optional)
+
+    # Set sun elevation filter (Optional)
+
+    # Set view angle filter (Optional)
+
+    # Set ground_control filter StringInFilter (String 'true', 'false')(Optional)
+
+    # visible_percent RangeFilter (Int 0-100)
+
+    # usable data RangeFilter (Double 0.0 - 1.0)
+
+
+    # Set permissions filter to only return downloadable data
+    permission_filter = api.filters.permission_filter('assets:download')
+    
+
+    request_filter = api.filters.and_filter(
+        start_date_range_filter,
+        end_date_range_filter,
+        cloud_cover_low_filter,
+        cloud_cover_high_filter,
+        permission_filter
+    )
+    
+    planet_query_filter = api.filters.build_search_request([item_type], request_filter)
+    
+
+    
+    
+
+
     nav_string = usgs_product_dict[gui_product]
     product = nav_string['product']
     product_format = nav_string['format']
@@ -271,6 +244,11 @@ def main():
     product_url_split = nav_string['url_split']
     product_extent = nav_string['extent']
     gui_subset = None
+
+    #Set Planet API Key and client
+    os.environ['PL_API_KEY'] = planet_api_key
+    client = api.ClientV1()
+
 
     # Parameter assignments for each dataset
     if gui_product == 'ned':
